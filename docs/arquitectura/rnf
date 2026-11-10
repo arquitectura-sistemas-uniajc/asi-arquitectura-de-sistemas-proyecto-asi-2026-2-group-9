@@ -1,0 +1,208 @@
+# Requerimientos No Funcionales (RNF) – SensorCampus
+
+## 1. Descripción
+
+SensorCampus es un sistema de monitoreo ambiental diseñado para recibir, procesar y almacenar información de temperatura, humedad y calidad del aire en diferentes puntos del campus universitario.
+
+El sistema contará inicialmente con 20 sensores ambientales que enviarán lecturas cada 15 segundos. La información será procesada y almacenada para permitir su visualización en un tablero, la consulta de datos históricos y la generación de alertas cuando los valores registrados superen los umbrales establecidos.
+
+Este documento define los requerimientos no funcionales que deberá cumplir SensorCampus para garantizar su rendimiento, disponibilidad, confiabilidad, seguridad y capacidad de crecimiento.
+
+## 2. Consideraciones generales
+
+- Sensores iniciales: 20.
+- Frecuencia de envío: una lectura cada 15 segundos por sensor.
+- Lecturas estimadas: 115.200 registros diarios.
+- Usuarios: personal de mantenimiento, administración del campus y público general.
+- Componentes principales: Frontend Web, Nginx, API REST, RabbitMQ, Worker, Redis, PostgreSQL, Prometheus y Grafana.
+
+## 3. Requerimientos no funcionales
+
+### RNF-01. Rendimiento en la recepción de lecturas
+
+**Categoría:** Rendimiento.
+
+**Descripción:** El sistema deberá recibir y procesar continuamente las lecturas generadas por los 20 sensores ambientales, considerando una frecuencia de envío de una lectura cada 15 segundos por sensor.
+
+**Criterio de aceptación:** El sistema deberá soportar una carga normal de 1,33 lecturas por segundo, sin acumular retrasos durante su operación habitual.
+
+**Verificación:** Realizar pruebas de carga mediante un simulador que envíe lecturas de los 20 sensores de forma continua.
+
+**Origen:** D (20 sensores y frecuencia de 15 segundos).
+
+### RNF-02. Tiempo de respuesta del tablero
+
+**Categoría:** Rendimiento.
+
+**Descripción:** El tablero de SensorCampus deberá presentar los valores ambientales actuales de manera oportuna para permitir que los usuarios consulten las condiciones del campus.
+
+**Criterio de aceptación:** El tablero deberá mostrar la información solicitada en un tiempo máximo de 3 segundos bajo la carga esperada.
+
+**Verificación:** Realizar pruebas de rendimiento midiendo el tiempo de respuesta de las consultas del tablero.
+
+**Origen:** S (máximo de 3 segundos, pendiente de validación con el equipo).
+
+### RNF-03. Tiempo de respuesta de consultas históricas
+
+**Categoría:** Rendimiento.
+
+**Descripción:** El sistema deberá permitir consultar las lecturas históricas y sus datos agregados sin afectar significativamente el funcionamiento del tablero ni la recepción de nuevas lecturas.
+
+**Criterio de aceptación:** Las consultas históricas habituales deberán responder en un tiempo máximo de 5 segundos bajo la carga esperada.
+
+**Verificación:** Ejecutar consultas sobre diferentes periodos históricos y medir sus tiempos de respuesta.
+
+**Origen:** S (máximo de 5 segundos, pendiente de validación con el equipo).
+
+### RNF-04. Disponibilidad del sistema
+
+**Categoría:** Disponibilidad.
+
+**Descripción:** SensorCampus deberá permanecer disponible para los usuarios durante su horario de operación, permitiendo consultar la información ambiental y acceder a las funcionalidades principales.
+
+**Criterio de aceptación:** El sistema deberá mantener una disponibilidad mensual mínima del 99,5 %, durante el horario establecido de 6:00 a 22:00 horas.
+
+Para un mes de 30 días, esto representa un máximo aproximado de 144 minutos de indisponibilidad dentro de las horas de servicio.
+
+**Verificación:** Utilizar herramientas de monitoreo para registrar los periodos de disponibilidad e indisponibilidad de los componentes principales.
+
+**Origen:** D (99,5 % de disponibilidad y horario de operación previamente definidos).
+
+### RNF-05. Conservación y recuperación de lecturas
+
+**Categoría:** Confiabilidad.
+
+**Descripción:** El sistema deberá conservar las lecturas generadas durante interrupciones temporales de sus componentes y permitir su procesamiento una vez restablecido el servicio.
+
+**Criterio de aceptación:** Ante una interrupción de hasta 10 minutos, el sistema deberá recuperar y procesar las lecturas pendientes sin pérdida de información, evitando registros duplicados.
+
+Se deberá contemplar almacenamiento temporal y reintentos en el simulador de sensores o en una puerta de enlace, además de mecanismos de persistencia y confirmación de mensajes en RabbitMQ.
+
+**Verificación:** Simular una interrupción de 10 minutos, generar las lecturas correspondientes y comprobar que todas sean recibidas, procesadas y almacenadas correctamente después de recuperar el servicio.
+
+**Origen:** D (escenario de interrupción de 10 minutos); S (mecanismo de recuperación y almacenamiento temporal, pendiente de implementación y validación).
+
+### RNF-06. Retención y agregación de información histórica
+
+**Categoría:** Almacenamiento y eficiencia.
+
+**Descripción:** El sistema deberá administrar el almacenamiento de las lecturas ambientales mediante una política de retención y agregación que permita conservar información histórica sin almacenar indefinidamente todos los registros originales.
+
+**Criterio de aceptación:**
+
+- Conservar las lecturas originales cada 15 segundos durante los últimos 7 días.
+- Mantener información agregada por hora, incluyendo promedio, mínimo y máximo, para periodos de hasta 6 meses.
+- Conservar información agregada por día para periodos superiores a 6 meses.
+- Eliminar automáticamente los registros originales cuando cumplan su periodo de retención, una vez verificadas las agregaciones correspondientes.
+
+El periodo final de conservación de los datos agregados deberá ser definido por el equipo.
+
+**Verificación:** Comprobar la generación de agregaciones, la conservación de los datos y la eliminación automática de los registros que superen el periodo establecido.
+
+**Origen:** D (decisión de utilizar agregaciones históricas); S (periodos de retención propuestos por el equipo).
+
+### RNF-07. Generación oportuna de alertas
+
+**Categoría:** Rendimiento y confiabilidad.
+
+**Descripción:** El sistema deberá identificar las lecturas que superen los umbrales establecidos para temperatura, humedad y calidad del aire, generando las alertas correspondientes para el personal de mantenimiento.
+
+**Criterio de aceptación:** Las alertas deberán generarse en un tiempo máximo de 30 segundos desde la recepción de una lectura que supere los umbrales configurados.
+
+**Verificación:** Enviar lecturas que superen los límites establecidos y medir el tiempo transcurrido entre su recepción y la generación de la alerta.
+
+**Origen:** D (necesidad de generar alertas por umbral); S (tiempo máximo de 30 segundos, pendiente de validación).
+
+### RNF-08. Seguridad en las comunicaciones y acceso
+
+**Categoría:** Seguridad.
+
+**Descripción:** El sistema deberá proteger la información transmitida entre los usuarios, los sensores y los componentes externos, evitando accesos no autorizados a las funcionalidades administrativas.
+
+**Criterio de aceptación:**
+
+- Las comunicaciones externas con el sistema deberán utilizar conexiones cifradas mediante HTTPS.
+- Las funcionalidades administrativas deberán requerir autenticación.
+- El acceso a las funcionalidades deberá estar limitado de acuerdo con los permisos asignados a cada tipo de usuario.
+
+**Verificación:** Realizar pruebas de acceso con usuarios de diferentes permisos y comprobar que las comunicaciones externas utilicen conexiones cifradas.
+
+**Origen:** S (medidas de seguridad propuestas por el equipo, pendientes de validación).
+
+### RNF-09. Monitoreo del estado del sistema
+
+**Categoría:** Observabilidad y mantenibilidad.
+
+**Descripción:** El sistema deberá permitir supervisar el funcionamiento de sus componentes para identificar fallas, retrasos en el procesamiento de lecturas y problemas de disponibilidad.
+
+**Criterio de aceptación:** Se deberán disponer de métricas que permitan consultar el estado de la API REST, RabbitMQ y el Worker, así como la cantidad de lecturas procesadas, los mensajes pendientes y los errores registrados.
+
+**Verificación:** Comprobar que Prometheus recolecte las métricas y que Grafana permita visualizar el estado de los componentes y sus indicadores principales.
+
+**Origen:** D (componentes Prometheus y Grafana definidos en la arquitectura).
+
+### RNF-10. Escalabilidad del procesamiento
+
+**Categoría:** Escalabilidad.
+
+**Descripción:** La arquitectura deberá permitir aumentar la capacidad de recepción y procesamiento de lecturas cuando se incorporen nuevos sensores al campus.
+
+**Criterio de aceptación:** Deberá ser posible aumentar la capacidad de procesamiento mediante la incorporación de instancias o trabajadores adicionales, sin modificar la funcionalidad principal del sistema.
+
+**Verificación:** Realizar pruebas aumentando la cantidad de sensores simulados y comprobar el comportamiento del sistema al incrementar la capacidad de procesamiento.
+
+**Origen:** S (capacidad de crecimiento propuesta por el equipo, pendiente de validación).
+
+### RNF-11. Control de costos de infraestructura
+
+**Categoría:** Eficiencia de costos.
+
+**Descripción:** La infraestructura desplegada en AWS deberá mantener un costo mensual acorde con el presupuesto definido para el proyecto, considerando los recursos necesarios para garantizar los requerimientos de rendimiento y disponibilidad.
+
+**Criterio de aceptación:** El costo mensual estimado de la infraestructura no deberá superar el límite presupuestal que establezca el equipo o el cliente.
+
+**Verificación:** Realizar una estimación mensual mediante AWS Pricing Calculator y comparar los resultados con el presupuesto establecido.
+
+**Origen:** S (presupuesto máximo pendiente de definición).
+
+## 4. Consideraciones para la implementación
+
+Para cumplir los requerimientos definidos, se tendrán en cuenta las siguientes decisiones arquitectónicas:
+
+- Utilizar RabbitMQ para desacoplar la recepción de lecturas de su procesamiento.
+- Implementar mecanismos de almacenamiento temporal y reintentos para evitar pérdidas de lecturas durante interrupciones.
+- Utilizar Redis para mejorar el rendimiento de las consultas frecuentes.
+- Utilizar PostgreSQL para almacenar las lecturas ambientales, los históricos y las alertas.
+- Implementar procesos de agregación y eliminación automática de datos de acuerdo con la política de retención.
+- Utilizar Prometheus y Grafana para supervisar el funcionamiento de los componentes.
+- Evaluar el uso de múltiples instancias y servicios gestionados en AWS para mejorar la disponibilidad y capacidad de procesamiento.
+
+## 5. Supuestos y aspectos pendientes de validación
+
+Los siguientes valores y decisiones deberán ser revisados por el equipo antes de considerarse definitivos:
+
+| Aspecto | Valor o decisión propuesta | Validación necesaria |
+|---|---|---|
+| Tiempo de respuesta del tablero | 3 segundos | Confirmar con el equipo |
+| Consultas históricas | 5 segundos | Confirmar con el equipo |
+| Generación de alertas | 30 segundos | Confirmar con el equipo |
+| Retención de lecturas originales | 7 días | Confirmar con el equipo |
+| Agregación por hora | Hasta 6 meses | Confirmar con el equipo |
+| Conservación de agregados diarios | Periodo por definir | Definir con el equipo |
+| Recuperación de lecturas | Sin pérdida ante interrupciones de 10 minutos | Validar mecanismo de almacenamiento temporal |
+| Seguridad | HTTPS, autenticación y permisos | Confirmar alcance de usuarios y accesos |
+| Escalabilidad | Incorporación de trabajadores adicionales | Validar capacidad objetivo |
+| Presupuesto mensual | Por definir | Establecer límite de costos |
+
+## 6. Relación con la arquitectura
+
+Los requerimientos definidos orientan las responsabilidades de los principales componentes de SensorCampus:
+
+- API REST y Nginx: recepción de solicitudes y comunicación con el sistema.
+- RabbitMQ: desacoplamiento y almacenamiento temporal de mensajes pendientes.
+- Worker: procesamiento de lecturas y generación de alertas.
+- Redis: almacenamiento en caché de consultas frecuentes.
+- PostgreSQL: almacenamiento de lecturas, históricos y alertas.
+- Prometheus y Grafana: monitoreo y visualización del estado operativo.
+
+La implementación definitiva deberá verificar que las decisiones arquitectónicas permitan cumplir los requerimientos establecidos y que los recursos seleccionados sean coherentes con las estimaciones de capacidad y costos.
